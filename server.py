@@ -1,46 +1,47 @@
 import socket
-from threading import Thread
+import threading
+import datetime
 
-host = ""
-port = 9999
+host = "127.0.0.1"
+port = 6000
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((host, port))
+server.listen(5)
+allsockets = {}
+allthreads = []
 
-separator = "<SEP>"
-# initialize all list of users
-client_sockets = set()
+
+def sendAllClients(msg, dontSendTo="None"):
+    for t in allsockets.keys():
+        if t == dontSendTo:
+            continue
+        allsockets[t].send(msg.encode("UTF-8"))
 
 
-def create_socket():
-    s = socket.socket()
-    # make a port reusable
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((host, port))
-    s.listen(5)
-    print(f"Server is listening for {host}:{port}.")
+def onNewClient(client):
+    name = client.recv(2040).decode()
+    loginTime = datetime.datetime.now().strftime("%X")
+    allsockets[name] = client
+    loginMsg = "Server: time=" + loginTime + " " + name + " has joined. Member count=" + str(len(allsockets))
+    sendAllClients(loginMsg)
     while True:
-        client_socket, client_address = s.accept()
-        print(f"{client_address} connected.")
-        client_sockets.add(client_socket)
-        # start a thread that listerns to users message
-        t = Thread(target=listern_for_client, args=(client_socket,))
-        t.daemon = True
-        t.start()
-    s.close()
-
-
-def listern_for_client(cs):
-    while True:
-        try:
-            msg = cs.recv(1024).decode()
-        except Exception as e:
-            print(f"Error {e} has occurred.")
-            client_sockets.remove(cs)
+        chat = client.recv(2040).decode()
+        if chat == "quit":
+            quitTime = datetime.datetime.now().strftime("%X")
+            quitmsg = "Server: time=" + quitTime + " " + name + " has left. Member count=" + str(len(allsockets) - 1)
+            del allsockets[name]
+            sendAllClients(quitmsg)
+            client.send("qqqqq".encode("UTF-8"))
+            client.close()
+            break
         else:
-            msg = msg.replace(separator, ":")
-
-        for client_socket in client_sockets:
-            client_socket.send(msg.encode())
-    for cs in client_sockets:
-        cs.close()
+            chat = name + ": " + chat
+            sendAllClients(chat, name)
 
 
-create_socket()
+while True:
+    client, addr = server.accept()
+    t = threading.Thread(target=onNewClient, args=(client,))
+    allthreads.append(t)
+    t.start()
+
