@@ -1,32 +1,37 @@
 import socket
-from threading import Thread
-from datetime import datetime
+import threading
 
 host = "127.0.0.1"
-port = 9999
-separator = "<SEP>"
-
-s = socket.socket()
-print(f"Connecting to {host}:{port}...")
-s.connect((host, port))
-print(f"Connected to {host}")
-name = input("Enter your name: ")
+port = 6000
+connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+connection.connect((host, port))
+user = input("Enter your name:")
+connection.send(user.encode("UTF-8"))
 
 
-def listern_for_message():
+def chat():
     while True:
-        message = s.recv(1024).decode()
-        print("\n" + message)
+        print(user," : ",end="")
+        msg = input()
+        connection.send(msg.encode("UTF-8"))
+        if msg == "quit":
+            print("You have successfully logged out")
+            break
 
 
-t = Thread(target=listern_for_message)
-t.daemon = True
-t.start()
-while True:
-    to_send = input()
-    if to_send.lower() == 'q':
-        break
-    date_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    to_send = f"{date_now} {name}{separator}{to_send}"
-    s.send(to_send.encode())
-s.close()
+def msg_from_server():
+    while True:
+        server_msg = connection.recv(2040).decode()
+        if server_msg != "qqqqq":
+            print(server_msg)
+        else:
+            break
+
+
+t1 = threading.Thread(target=msg_from_server)
+t2 = threading.Thread(target=chat)
+t1.start()
+t2.start()
+t1.join()
+t2.join()
+connection.close()
