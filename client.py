@@ -2,7 +2,7 @@ import socket
 import threading
 
 host = "127.0.0.1"
-port = 6000
+port = 6001
 connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 connection.connect((host, port))
 user = input("Enter your name:")
@@ -11,7 +11,6 @@ connection.send(user.encode("UTF-8"))
 
 def chat():
     while True:
-        print(user," : ",end="")
         msg = input()
         connection.send(msg.encode("UTF-8"))
         if msg == "quit":
